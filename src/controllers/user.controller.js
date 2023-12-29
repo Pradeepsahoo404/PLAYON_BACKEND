@@ -183,9 +183,100 @@ const refreshAccessToken = asyncHandler( async (req , res) => {
     }
 })
 
+
+const changeCurrentPassword = asyncHandler( async (req , res) => {
+    const {oldPassword , newPassword , confirmPassword} = req.body;
+
+    if(!(newPassword === confirmPassword)){
+        throw new ApiError(400 ,"New password and Confirm Password are not the same");
+    }
+
+    const user = await User.findById(req.user?._id);
+    const isPasswordCorrect = await user.isPasswordCorrect(oldPassword)
+    if(!isPasswordCorrect) {
+        throw new ApiError(400 , "Old password is incorrect");
+    }
+
+    user.password = newPassword;
+    await user.save({ValidateBeforeSave : false});
+
+    return res.status(200).json(
+        new ApiResponse(200 , {} ,"Password has been changed successfully")
+    )
+});
+
+
+const getCurrentUser = asyncHandler( async (req, res) => {
+    return res.status(200).json(
+        new ApiResponse(200 , req.user , "current user fetched successfully")
+    )
+
+})
+
+const updateAccountDetail = asyncHandler( async (req, res) => {
+    const {fullName , email } = req.body;
+
+    if(!fullName || !email){
+        throw new ApiError(400 , "Please provide full name and email address to continue");
+    }
+
+    const userDetail = await User.findByIdAndUpdate(req.user?._id , { $set : {fullName , email}} ,{new : true}).select("-password")
+
+    return res.status(200).json(
+        new ApiResponse(200 , userDetail , "user updated successfully")
+    )
+
+})
+
+const updateAvatar = asyncHandler(async (req , res) => {
+    const avatarlocalpath = req.file?.path;
+    if(!avatarlocalpath){
+        throw new ApiError(400 , "Image field cannot be empty");
+    }
+
+    const avatar = await uploadOnCloudinary(avatarlocalpath)
+    if(!avatar.url){
+        throw new ApiError(500 , "Something went wrong while image uploading");
+    }
+
+   const userDetail =  await User.findByIdAndUpdate(req.user?._id , {$set : {avatar : avatar.url}} ,{new : true}).select("-password")
+
+    return res.status(200).json(
+        new ApiResponse(200 , userDetail , "user updated successfully")
+    )
+})
+
+
+const updateCoverImage = asyncHandler( async (req , res) => {
+    const coverImage = req.file?.path;
+    
+    if(!coverImage){
+        throw new ApiError(400 , "cover Image field cannot be empty");
+    }
+
+    const coverImageUrl =  await uploadOnCloudinary(coverImage);
+
+    if(!coverImageUrl.url){
+        throw new ApiError(400 ,"Something went wrong while image uploading");
+    }
+
+    const userDetail = await User.findByIdAndUpdate(req.user?._id , {$set : {coverImage : coverImageUrl.url}} , {new : true}).select("-password")
+
+    return res.status(200).json(
+        new ApiResponse(200 , userDetail , "user updated successfully")
+    )
+})
+
+
+
 export  {
     registerUser,
     loginUser,
     logoutUser,
-    refreshAccessToken
+    refreshAccessToken,
+    changeCurrentPassword,
+    getCurrentUser,
+    updateAccountDetail,
+    updateAvatar,
+    updateCoverImage,
 }
